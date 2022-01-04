@@ -36,6 +36,7 @@ class WikiParser:
          'EAN',
          'Tracklist']
         self.tracklist_text = None
+        self.references_text = None
         self.album_title = None
         self.artist = None
         self.ja_link = None
@@ -75,6 +76,17 @@ class WikiParser:
         text = re.sub("=[\s]*Track listing[\s]*=", "= 曲目 =", text)
         self.tracklist_text = text 
         
+    def parse_references(self):
+        section_index = self._parse_section_index_by_title("References")
+        if section_index is None: return None
+        
+        url = f"https://en.wikipedia.org/w/api.php?action=parse&page={self.title}&prop=wikitext&section={section_index}&format=json"
+        soup = get_soup(url)
+        text = json.loads(soup.text)["parse"]["wikitext"]["*"]
+
+        text = re.sub("=[\s]*References[\s]*=", "= 参考文献 =", text)
+        self.references_text = text        
+        
     def parse_ja_link(self):
         url = f"https://en.wikipedia.org/w/api.php?action=parse&page={self.title}&prop=langlinks&format=json"
         soup = get_soup(url)
@@ -82,13 +94,13 @@ class WikiParser:
         for langlink in langlinks:
             if langlink["lang"] == "ja":
                 self.ja_link = langlink["url"]
-            
+
     def _parse_section_index_by_title(self, title):
         url = f"https://en.wikipedia.org/w/api.php?action=parse&page={self.title}&prop=sections&format=json"
         soup = get_soup(url)
         sections = json.loads(soup.text)["parse"]["sections"]        
         for section in sections:
-            if section["line"] == title: return section["index"]                      
+            if section["line"] == title: return section["index"]                               
 
  
 header_text = \
@@ -116,6 +128,7 @@ if st.button("変換"):
         
         wiki.parse_album_template()
         wiki.parse_tracklist()
+        wiki.parse_references()
 
     text = \
     f"""
@@ -124,6 +137,8 @@ if st.button("変換"):
 {wiki.album_text}
 
 {wiki.tracklist_text}
+
+{wiki.references_text}
     """
     st.code(text)
 
